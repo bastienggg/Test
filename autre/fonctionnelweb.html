@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
+  </head>
+  <body>
+    <a-scene
+      physics
+      cursor="rayOrigin: mouse"
+      raycaster="objects: [data-raycastable]"
+    >
+      <!-- Lumière qui change de couleur -->
+      <a-light
+        id="light"
+        type="point"
+        position="0 3 -3"
+        color="white"
+      ></a-light>
+
+      <!-- Caméra -->
+      <a-entity id="cameraRig">
+        <a-camera
+          id="camera"
+          position="0 2 5"
+          wasd-controls
+          look-controls
+        ></a-camera>
+      </a-entity>
+
+      <!-- Sol -->
+      <a-plane
+        position="0 0 -3"
+        rotation="-90 0 0"
+        width="10"
+        height="10"
+        color="gray"
+        static-body
+      ></a-plane>
+      <a-box
+        position="0 0 -3"
+        width="10"
+        height="0.1"
+        depth="10"
+        visible="false"
+        static-body
+      ></a-box>
+
+      <!-- Boîte mobile -->
+      <a-box
+        id="movableBox"
+        position="3 1.5 -3"
+        width="1"
+        height="1"
+        depth="1"
+        color="red"
+        data-raycastable
+        dynamic-body="mass: 5"
+        data-valeur="50"
+      ></a-box>
+
+      <!-- Boîte creuse sans toit -->
+      <a-entity id="hollowBox" position="0 1 -3" data-valeur="55">
+        <a-box
+          position="0 -1.5 0"
+          width="2.8"
+          height="0.2"
+          depth="2.8"
+          color="blue"
+          opacity="0.3"
+          static-body
+        ></a-box>
+        <a-box
+          position="0 0 1.5"
+          width="2.8"
+          height="2.8"
+          depth="0.2"
+          color="blue"
+          static-body
+          opacity="0.3"
+        ></a-box>
+        <a-box
+          position="0 0 -1.5"
+          width="2.8"
+          height="2.8"
+          depth="0.2"
+          color="blue"
+          opacity="0.3"
+        ></a-box>
+        <a-box
+          position="1.5 0 0"
+          width="0.2"
+          height="2.8"
+          depth="2.8"
+          opacity="0.3"
+          static-body
+          color="blue"
+        ></a-box>
+        <a-box
+          position="-1.5 0 0"
+          width="0.2"
+          height="2.8"
+          depth="2.8"
+          opacity="0.3"
+          static-body
+          color="blue"
+        ></a-box>
+      </a-entity>
+    </a-scene>
+
+    <script>
+      AFRAME.registerComponent("draggable", {
+        init: function () {
+          const el = this.el;
+          let isDragging = false;
+
+          el.addEventListener("mousedown", function () {
+            isDragging = true;
+            el.setAttribute("dynamic-body", "mass: 0"); // Désactive temporairement la gravité pendant le drag
+          });
+
+          document.addEventListener("mousemove", function (evt) {
+            if (isDragging) {
+              const raycaster =
+                document.querySelector("a-scene").components.raycaster;
+              const intersection = raycaster.getIntersection(el);
+
+              if (intersection) {
+                const point = intersection.point;
+                el.setAttribute(
+                  "position",
+                  `${point.x} ${point.y} ${el.getAttribute("position").z}`
+                ); // Bloque sur Z
+              }
+            }
+          });
+
+          document.addEventListener("mouseup", function () {
+            if (isDragging) {
+              isDragging = false;
+              el.setAttribute("dynamic-body", "mass: 5"); // Réactive la gravité
+            }
+          });
+        },
+      });
+
+      function checkIfInside() {
+        const box = document.querySelector("#movableBox");
+        const hollowBox = document.querySelector("#hollowBox");
+        const light = document.querySelector("#light");
+
+        const boxPos = box.object3D.position;
+        const hollowPos = hollowBox.object3D.position;
+
+        const minX = hollowPos.x - 1.4,
+          maxX = hollowPos.x + 1.4;
+        const minY = hollowPos.y - 1.4,
+          maxY = hollowPos.y + 1.4;
+        const minZ = hollowPos.z - 1.4,
+          maxZ = hollowPos.z + 1.4;
+
+        // Valeurs des boîtes
+        const movableBoxValue = parseInt(box.getAttribute("data-valeur"));
+        const hollowBoxValue = parseInt(hollowBox.getAttribute("data-valeur"));
+
+        // Vérifier si la boîte rouge est dans la boîte creuse
+        if (
+          boxPos.x >= minX &&
+          boxPos.x <= maxX &&
+          boxPos.y >= minY &&
+          boxPos.y <= maxY &&
+          boxPos.z >= minZ &&
+          boxPos.z <= maxZ
+        ) {
+          // Vérification si les valeurs des deux boîtes sont égales
+          if (movableBoxValue === hollowBoxValue) {
+            console.log(
+              `✅ Boîte rouge DEDANS avec les mêmes valeurs! Valeur boîte rouge: ${movableBoxValue} | Valeur boîte creuse: ${hollowBoxValue}`
+            );
+            light.setAttribute("color", "green");
+          } else {
+            console.log(
+              `❌ Boîte rouge DEDANS mais avec des valeurs différentes! Valeur boîte rouge: ${movableBoxValue} | Valeur boîte creuse: ${hollowBoxValue}`
+            );
+            light.setAttribute("color", "white");
+          }
+        } else {
+          console.log(
+            `❌ Boîte rouge DEHORS! Valeur boîte rouge: ${movableBoxValue} | Valeur boîte creuse: ${hollowBoxValue}`
+          );
+          light.setAttribute("color", "white");
+        }
+      }
+
+      // Appeler la vérification en continu pendant la scène
+      function update() {
+        checkIfInside();
+        requestAnimationFrame(update); // Continuer l'appel à chaque frame
+      }
+
+      // Démarre la vérification continue
+      update();
+
+      document.querySelector("#movableBox").setAttribute("draggable", "");
+    </script>
+  </body>
+</html>

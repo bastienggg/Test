@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
+  </head>
+  <body>
+    <a-scene
+      physics
+      cursor="rayOrigin: mouse"
+      raycaster="objects: [data-raycastable]"
+      xr-mode-ui="enabled: true"
+    >
+      <!-- Lumière qui change de couleur -->
+      <a-light
+        id="light"
+        type="point"
+        position="0 3 -3"
+        color="white"
+      ></a-light>
+
+      <!-- Caméra avec contrôleurs VR -->
+      <a-entity id="cameraRig" position="0 1.6 0">
+        <a-camera id="camera" wasd-controls look-controls></a-camera>
+
+        <!-- Contrôleur VR Gauche -->
+        <a-entity
+          id="leftController"
+          oculus-touch-controls="hand: left"
+          teleport-controls="cameraRig: #cameraRig; button: B"
+          data-hand="left"
+        >
+        </a-entity>
+
+        <!-- Contrôleur VR Droit -->
+        <a-entity
+          id="rightController"
+          oculus-touch-controls="hand: right"
+          grabber
+          data-hand="right"
+        >
+        </a-entity>
+      </a-entity>
+
+      <!-- Sol -->
+      <a-plane
+        position="0 0 -3"
+        rotation="-90 0 0"
+        width="10"
+        height="10"
+        color="gray"
+        static-body
+      ></a-plane>
+      <a-box
+        position="0 0 -3"
+        width="10"
+        height="0.1"
+        depth="10"
+        visible="false"
+        static-body
+      ></a-box>
+
+      <!-- Boîte mobile -->
+      <a-box
+        id="movableBox"
+        position="3 1.5 -3"
+        width="1"
+        height="1"
+        depth="1"
+        color="red"
+        data-raycastable
+        dynamic-body="mass: 5"
+        grabbable
+        data-valeur="50"
+      >
+      </a-box>
+
+      <!-- Boîte creuse sans toit -->
+      <a-entity id="hollowBox" position="0 1 -3" data-valeur="55">
+        <a-box
+          position="0 -1.5 0"
+          width="2.8"
+          height="0.2"
+          depth="2.8"
+          color="blue"
+          opacity="0.3"
+          static-body
+        ></a-box>
+        <a-box
+          position="0 0 1.5"
+          width="2.8"
+          height="2.8"
+          depth="0.2"
+          color="blue"
+          opacity="0.3"
+          static-body
+        ></a-box>
+        <a-box
+          position="0 0 -1.5"
+          width="2.8"
+          height="2.8"
+          depth="0.2"
+          color="blue"
+          opacity="0.3"
+          static-body
+        ></a-box>
+        <a-box
+          position="1.5 0 0"
+          width="0.2"
+          height="2.8"
+          depth="2.8"
+          opacity="0.3"
+          static-body
+          color="blue"
+        ></a-box>
+        <a-box
+          position="-1.5 0 0"
+          width="0.2"
+          height="2.8"
+          depth="2.8"
+          opacity="0.3"
+          static-body
+          color="blue"
+        ></a-box>
+      </a-entity>
+    </a-scene>
+
+    <script>
+      AFRAME.registerComponent("grabber", {
+        init: function () {
+          const el = this.el;
+          let grabbed = null;
+
+          el.addEventListener("gripdown", function () {
+            // Détection des objets pouvant être pris
+            const raycaster = el.components.raycaster;
+            if (raycaster) {
+              const intersection = raycaster.intersections[0];
+              if (intersection) {
+                grabbed = intersection.object.el;
+                grabbed.setAttribute("dynamic-body", "mass: 0"); // Désactiver la gravité
+                el.appendChild(grabbed); // Attacher à la main
+              }
+            }
+          });
+
+          el.addEventListener("gripup", function () {
+            if (grabbed) {
+              grabbed.setAttribute("dynamic-body", "mass: 5"); // Réactiver la gravité
+              el.sceneEl.appendChild(grabbed); // Détacher de la main
+              grabbed = null;
+            }
+          });
+        },
+      });
+
+      function checkIfInside() {
+        const box = document.querySelector("#movableBox");
+        const hollowBox = document.querySelector("#hollowBox");
+        const light = document.querySelector("#light");
+
+        const boxPos = box.object3D.position;
+        const hollowPos = hollowBox.object3D.position;
+
+        const minX = hollowPos.x - 1.4,
+          maxX = hollowPos.x + 1.4;
+        const minY = hollowPos.y - 1.4,
+          maxY = hollowPos.y + 1.4;
+        const minZ = hollowPos.z - 1.4,
+          maxZ = hollowPos.z + 1.4;
+
+        const movableBoxValue = parseInt(box.getAttribute("data-valeur"));
+        const hollowBoxValue = parseInt(hollowBox.getAttribute("data-valeur"));
+
+        if (
+          boxPos.x >= minX &&
+          boxPos.x <= maxX &&
+          boxPos.y >= minY &&
+          boxPos.y <= maxY &&
+          boxPos.z >= minZ &&
+          boxPos.z <= maxZ
+        ) {
+          if (movableBoxValue === hollowBoxValue) {
+            console.log(`✅ Boîte rouge DEDANS avec les mêmes valeurs!`);
+            light.setAttribute("color", "green");
+          } else {
+            console.log(
+              `❌ Boîte rouge DEDANS mais avec des valeurs différentes!`
+            );
+            light.setAttribute("color", "white");
+          }
+        } else {
+          console.log(`❌ Boîte rouge DEHORS!`);
+          light.setAttribute("color", "white");
+        }
+      }
+
+      function update() {
+        checkIfInside();
+        requestAnimationFrame(update);
+      }
+
+      update();
+    </script>
+  </body>
+</html>
