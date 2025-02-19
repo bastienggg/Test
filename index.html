@@ -3,18 +3,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script src="https://aframe.io/releases/1.2.0/aframe.min.js"></script>
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/donmccurdy/aframe-extras@v6.1.1/dist/aframe-extras.min.js"></script>
     <script src="https://cdn.jsdelivr.net/gh/c-frame/aframe-physics-system@v4.2.2/dist/aframe-physics-system.min.js"></script>
   </head>
   <body>
-    <a-scene
-      physics
-      cursor="rayOrigin: mouse"
-      raycaster="objects: [data-raycastable]"
-      xr-mode-ui="enabled: true"
-    >
-      <!-- Lumière qui change de couleur -->
+    <a-scene physics xr-mode-ui="enabled: true">
+      <!-- Lumière -->
       <a-light
         id="light"
         type="point"
@@ -22,25 +17,30 @@
         color="white"
       ></a-light>
 
-      <!-- Caméra avec contrôleurs VR -->
+      <!-- Caméra et rig -->
       <a-entity id="cameraRig" position="0 1.6 0">
         <a-camera id="camera" wasd-controls look-controls></a-camera>
 
-        <!-- Contrôleur VR Gauche -->
+        <!-- Contrôleur Gauche -->
         <a-entity
           id="leftController"
-          oculus-touch-controls="hand: left"
-          teleport-controls="cameraRig: #cameraRig; button: B"
-          data-hand="left"
+          vive-controls="hand: left"
+          tracked-controls="controller: 0"
+          visible="true"
+          geometry="primitive: sphere; radius: 0.05"
+          material="color: blue"
         >
         </a-entity>
 
-        <!-- Contrôleur VR Droit -->
+        <!-- Contrôleur Droit -->
         <a-entity
           id="rightController"
-          oculus-touch-controls="hand: right"
+          vive-controls="hand: right"
+          tracked-controls="controller: 1"
           grabber
-          data-hand="right"
+          visible="true"
+          geometry="primitive: sphere; radius: 0.05"
+          material="color: red"
         >
         </a-entity>
       </a-entity>
@@ -78,7 +78,7 @@
       >
       </a-box>
 
-      <!-- Boîte creuse sans toit -->
+      <!-- Boîte creuse -->
       <a-entity id="hollowBox" position="0 1 -3" data-valeur="55">
         <a-box
           position="0 -1.5 0"
@@ -134,23 +134,22 @@
           const el = this.el;
           let grabbed = null;
 
-          el.addEventListener("gripdown", function () {
-            // Détection des objets pouvant être pris
+          el.addEventListener("triggerdown", function () {
             const raycaster = el.components.raycaster;
             if (raycaster) {
               const intersection = raycaster.intersections[0];
               if (intersection) {
                 grabbed = intersection.object.el;
-                grabbed.setAttribute("dynamic-body", "mass: 0"); // Désactiver la gravité
-                el.appendChild(grabbed); // Attacher à la main
+                grabbed.setAttribute("dynamic-body", "mass: 0");
+                el.appendChild(grabbed);
               }
             }
           });
 
-          el.addEventListener("gripup", function () {
+          el.addEventListener("triggerup", function () {
             if (grabbed) {
-              grabbed.setAttribute("dynamic-body", "mass: 5"); // Réactiver la gravité
-              el.sceneEl.appendChild(grabbed); // Détacher de la main
+              grabbed.setAttribute("dynamic-body", "mass: 5");
+              el.sceneEl.appendChild(grabbed);
               grabbed = null;
             }
           });
